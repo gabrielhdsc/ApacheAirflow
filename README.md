@@ -1,4 +1,4 @@
-Descrição do Projeto
+Descrição do DERSO
 
 Este repositório apresenta um pipeline completo de engenharia de dados utilizando Apache Airflow em ambiente on-premise (Databricks local), com o objetivo de orquestrar a ingestão, transformação, modelagem e disponibilização de dados em múltiplas camadas.
 
