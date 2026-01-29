@@ -4,8 +4,8 @@ import glob
 from datetime import datetime
 
 def transferir_landing_bronze():
-    path_landing = "data/landingzone"
-    path_bronze = "data/bronze"
+    path_landing = "/opt/airflow/data/landingzone"
+    path_bronze = "/opt/airflow/data/bronze"
 
     #lista todos os caminhos de arquivos .csv
     path_padrao = os.path.join(path_landing, "*.csv")
