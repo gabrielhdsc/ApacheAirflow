@@ -59,7 +59,7 @@ def transformar_order_items_silver():
     df["price"] = pd.to_numeric(df["price"], errors="coerce").fillna(0.0)
 
 
-    salvar_silver(df,"orders_items_dataset.parquet")
+    salvar_silver(df,"order_items_dataset.parquet")
 
 
 def transformar_customers_silver():
@@ -71,7 +71,7 @@ def transformar_customers_silver():
     df = df[cols].copy()
 
     df = df.dropna()
-    df = df.drop_duplicates(subset=["customer_unique_id"])
+    df = df.drop_duplicates(subset=["customer_id"])
 
     salvar_silver(df, "customers_dataset.parquet")
 
