@@ -1,77 +1,211 @@
-Descrição do DERSO
-Descrição do JAAAAAAAAOOOOOOOOOOOOOOO
+# Data Lakehouse Pipeline with Apache Airflow (Medallion Architecture)
 
-Este repositório apresenta um pipeline completo de engenharia de dados utilizando Apache Airflow em ambiente on-premise (Databricks local), com o objetivo de orquestrar a ingestão, transformação, modelagem e disponibilização de dados em múltiplas camadas.
+## 📌 Descrição do Projeto
 
-O projeto utiliza 3 ou mais tabelas relacionadas ao mesmo domínio temático (ex.: datasets do Kaggle, dados gerados pelo GPT, etc.), demonstrando o processo de ponta a ponta de um fluxo moderno de dados. Todo o desenvolvimento é controlado por versionamento via GitHub, utilizando commits estruturados e documentação adequada.
+Este projeto implementa um pipeline completo de engenharia de dados utilizando **Apache Airflow** para orquestração e a arquitetura **Medallion (Landing → Bronze → Silver → Gold)** para organização e processamento dos dados.
 
-Principais Componentes
-Orquestração
+O pipeline realiza a ingestão de múltiplos datasets de um domínio de e-commerce, persistindo os dados brutos, aplicando padronizações e validações, e disponibilizando ao final um modelo analítico dimensional (Star Schema) pronto para consultas analíticas.
 
-Execução via Apache Airflow
+O resultado final é uma **camada Gold estruturada em Fato e Dimensões**, permitindo análises de desempenho logístico, como **lead time de entrega** e **atraso de pedidos**.
 
-DAGs criadas para controlar dependências entre etapas
+---
 
-Monitoramento e reprocessamento de tarefas
+## 🎯 Objetivo
 
-Processamento de Dados
+O objetivo do projeto é simular um ambiente real de engenharia de dados corporativa, demonstrando a construção de um pipeline ponta-a-ponta que contempla:
 
-Execução local com Databricks (on-premise)
+* Ingestão de dados
+* Persistência em múltiplas camadas
+* Tratamento e padronização
+* Modelagem dimensional
+* Orquestração automatizada
+* Disponibilização para consumo analítico
 
-Camadas definidas em arquitetura estilo medallion:
+A solução foi desenvolvida com foco em **boas práticas de Data Engineering**, organização de código e rastreabilidade de processamento.
 
-Landing
+---
 
-Bronze
+## 🏗 Arquitetura
 
-Silver
+O pipeline segue o padrão **Medallion Architecture**, separando responsabilidades por camadas:
 
-Gold
+### Landing Zone
 
-Modelagem Dimensional
+Área de aterrissagem responsável por armazenar os arquivos originais (CSV) exatamente como recebidos da fonte, sem qualquer modificação.
 
-Estrutura em Fato e Dimensão
+### Bronze Layer
 
-Aplicação de boas práticas de Data Warehouse
+Camada de persistência histórica (append-only).
+Os arquivos são ingeridos e armazenados em **formato Parquet particionado por data de ingestão**, mantendo:
 
-Ajustes para consultas analíticas
+* rastreabilidade
+* reprocessamento
+* auditoria
 
-Dataset
+Metadados adicionados:
 
-Conjunto de tabelas do mesmo assunto/tema (econômico, esportivo, mídia, etc.)
+* `data_ingestao`
+* `fonte_original`
 
-Possibilidade de expansão (mais tabelas/dominios)
+### Silver Layer
 
-Governança e Versionamento
+Camada de tratamento e padronização dos dados:
 
-Controle via Git + GitHub
+* tipagem correta de colunas
+* remoção de inconsistências
+* seleção de campos relevantes
+* preparação para modelagem
 
-Commits granulares e descritivos
+Representa a versão **confiável e limpa** dos dados operacionais.
 
-Issue tracking e milestones
+### Gold Layer
 
-Documentação
+Camada analítica com **modelagem dimensional (Star Schema)**:
 
-README com explicação do cenário
+* Tabelas dimensão (Dim)
+* Tabela fato (Fato)
 
-Stack utilizada
+Projetada para consultas analíticas e métricas de negócio.
 
-Como executar o projeto
+---
 
-Fluxo das etapas e exemplos
+## 🧰 Tecnologias Utilizadas
 
-Objetivos de Aprendizado
+* Python
+* Apache Airflow
+* Pandas
+* PostgreSQL
+* Parquet
+* SQLAlchemy
+* Git & GitHub
 
-Este projeto busca demonstrar competências em:
+---
 
-✔ Orquestração de pipelines batch
-✔ ETL/ELT completo do zero
-✔ Boas práticas de engenharia de dados
-✔ Modelagem Dimensional
-✔ Organização e controle de versionamento
-✔ Documentação e padronização de repositório
+## 📊 Fonte dos Dados
 
-Timeline Estimada
+Foi utilizado um dataset público de e-commerce contendo informações de pedidos, clientes, produtos e entregas.
 
-🗓 Duração total: 20 dias
-📅 Prazo planejado: até 09/02
+O domínio foi escolhido por permitir análises logísticas reais, especialmente:
+
+* tempo de entrega
+* performance operacional
+* atrasos de pedidos
+
+---
+
+## 🧱 Modelagem de Dados
+
+A camada Gold segue um modelo **Star Schema**.
+
+### Tabela Fato
+
+`fato_sales`
+
+Métricas:
+
+* preço
+* valor do frete
+* lead time de entrega
+* atraso de entrega
+
+### Dimensões
+
+* `dim_customers`
+* `dim_products`
+* `dim_date`
+
+A dimensão de data permite análises temporais como:
+
+* sazonalidade
+* tendências mensais
+* desempenho por dia da semana
+
+---
+
+## ⏱ Orquestração
+
+O pipeline é orquestrado por uma DAG do **Apache Airflow**, responsável por:
+
+1. Ingestão da Landing → Bronze
+2. Transformações Bronze → Silver
+3. Construção das Dimensões
+4. Construção da Tabela Fato
+
+A execução respeita dependências entre datasets para garantir consistência entre as camadas.
+
+---
+
+## ▶️ Como Executar
+
+1. Clonar o repositório
+
+```
+git clone <repo>
+```
+
+2. Subir o ambiente
+
+```
+docker-compose up -d
+```
+
+3. Acessar o Airflow
+
+```
+http://localhost:8080
+```
+
+4. Ativar a DAG:
+
+```
+pipeline_lakehouse_layers
+```
+
+---
+
+## 📁 Estrutura do Repositório
+
+```
+dags/                -> DAGs de orquestração
+scripts/             -> Scripts das camadas Bronze, Silver e Gold
+data/landingzone/    -> Arquivos originais
+data/bronze/         -> Dados brutos particionados
+data/silver/         -> Dados tratados
+data/gold/           -> Modelo dimensional
+```
+
+---
+
+## ⚙️ Decisões Técnicas
+
+**Parquet**
+Escolhido por ser um formato colunar, comprimido e otimizado para leitura analítica.
+
+**Particionamento por data de ingestão**
+Permite rastrear cargas, reprocessar dados e manter histórico.
+
+**Append-Only na Bronze**
+Garante auditoria e reprodutibilidade do pipeline.
+
+**Full Load Silver/Gold**
+Simplifica consistência do modelo dimensional durante a fase inicial do projeto.
+
+**Pandas em vez de Spark**
+Volume de dados compatível com processamento local e objetivo educacional focado em arquitetura e modelagem.
+
+---
+
+## 🔮 Melhorias Futuras
+
+* Implementação de carga incremental (CDC)
+* Uso de Delta Lake
+* Criação de SCD Type 2 em dimensões
+* Deploy em ambiente cloud
+* Integração com ferramenta de BI
+* Monitoramento de qualidade de dados
+
+---
+
+## 📌 Conclusão
+
+O projeto demonstra a construção de um pipeline completo de dados seguindo conceitos modernos de Data Lakehouse, boas práticas de engenharia de dados e modelagem dimensional, simulando um fluxo de processamento semelhante ao encontrado em ambientes corporativos.
