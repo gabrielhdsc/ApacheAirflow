@@ -1,2 +1,7 @@
-logs/**/*
-data/**/*
+logs/dag_id=pipeline_lakehouse_layers
+logs/dag_id=pipeline_landing_to_bronze
+logs/dag_processor
+data/bronze
+data/silver
+data/gold
+data/landingzone
