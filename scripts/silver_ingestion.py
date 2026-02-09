@@ -70,7 +70,7 @@ def transformar_products_silver():
 
     cols = ["product_id", "product_category_name", "product_name_lenght",
             "product_description_lenght", "product_photos_qty", "product_weight_g",
-            "product_lenght_cm", "product_height_cm", "product_width_cm"]
+            "product_length_cm", "product_height_cm", "product_width_cm"]
     
     df = df[cols].copy()
 
@@ -78,7 +78,7 @@ def transformar_products_silver():
     df["product_category_name"] = df["product_category_name"].fillna(value="não informado")
     
     cols_numbers = ["product_name_lenght", "product_description_lenght", "product_photos_qty",
-        "product_weight_g", "product_lenght_cm", "product_height_cm", "product_width_cm"]
+        "product_weight_g", "product_length_cm", "product_height_cm", "product_width_cm"]
     
     #Transforma todas as colunas de numero de uma vez
     df[cols_numbers] = df[cols_numbers].apply(pd.to_numeric, errors = "coerce")
@@ -121,7 +121,7 @@ def transformar_customers_silver():
 def transformar_geolocation_silver():
     df = ler_bronze("geolocation")       #le os dfs da tabela geolocation
 
-    cols = ["geolocation_zipcode_prefix", "geolocation_lat", "geolocation_lng", "geolocation_city", "geolocation_state"]
+    cols = ["geolocation_zip_code_prefix", "geolocation_lat", "geolocation_lng", "geolocation_city", "geolocation_state"]
     df = df[cols].copy()
 
     cols_num = ["geolocation_zip_code_prefix", "geolocation_lat", "geolocation_lng"]
