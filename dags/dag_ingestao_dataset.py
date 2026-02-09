@@ -9,7 +9,7 @@ from bronze_ingestion import transferir_landing_bronze
 from silver_ingestion import transformar_products_silver, transformar_order_items_silver, transformar_orders_silver, transformar_customers_silver, transformar_geolocation_silver, transformar_order_payments_silver, transformar_order_reviews_silver, transformar_sellers_silver
 from gold_ingestion import  criar_dim_products, criar_dim_customers, criar_fato_sales, criar_dim_date
 
-with DAG("teste", start_date = datetime(2026, 2, 8), 
+with DAG("pipeline_medallion_architecture", start_date = datetime(2026, 2, 8), 
          schedule = '@once', catchup = False) as dag:
 
     task_ingestao_bronze = PythonOperator(
