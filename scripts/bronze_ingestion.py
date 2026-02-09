@@ -6,7 +6,7 @@ def transferir_landing_bronze():
     path_landing = "/opt/airflow/data/landingzone"
     path_bronze = "/opt/airflow/data/bronze"
 
-    start_time = datetime.now()
+    start_time = datetime.now()         #Garante que todos os arquivos tenham o msm horario de ingestão
     data_hoje = datetime.now().strftime("%Y-%m-%d")     #Define formato da data: 00-00-00
 
     #Lista todos os arquivos da landing
@@ -21,7 +21,7 @@ def transferir_landing_bronze():
 
         #Cria a pasta para aquele arquivo e uma pasta para aquele dia
         caminho_particao = os.path.join(path_bronze, nome_pasta_tabela, data_hoje)
-        os.makedirs(caminho_particao, exist_ok=True)   #
+        os.makedirs(caminho_particao, exist_ok=True)   #cria a pasta caso não exista
 
         #Le cada arquivo da landing
         df = pd.read_csv(caminho_origem)
