@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import numpy as np
 from sqlalchemy import create_engine
 
 path_silver = "/opt/airflow/data/silver"
@@ -57,16 +58,21 @@ def criar_fato_sales():
     #Remove pedidos sem data de entrega para não influenciar o lead time
     fato_sales = fato_sales.dropna(subset=["order_delivered_customer_date"])
 
+   #data_pedido -> data que foi feito o pedido (remove as horas para cruzar com dim_date)
+    fato_sales["data_pedido"] = fato_sales["order_purchase_timestamp"].dt.date
+
     #lead time -> dias entre a compra e a entrega
     fato_sales["lead_time"] = (fato_sales["order_delivered_customer_date"] - fato_sales["order_purchase_timestamp"]).dt.days
 
-    #atraso_entrega -> valor positivo = atraso, valor negativo = adiantado
+    #atraso_entrega -> valor positivo = atraso, valor negativo = adiantado/no prazo
     fato_sales["atraso_entrega"] = (fato_sales["order_delivered_customer_date"] - fato_sales["order_estimated_delivery_date"]).dt.days
 
+    #status_entrega -> Define um status para entrega com base no "atraso_entrega"
+    fato_sales["status_entrega"] = np.where(fato_sales["atraso_entrega"] > 0, "Atrasado", "No prazo")
 
     #Colunas finais da fato
     cols_fato = [
-        "order_id", "product_id", "customer_id", "price", "freight_value", "lead_time", "atraso_entrega"
+        "order_id", "product_id", "customer_id", "data_pedido", "price", "freight_value", "lead_time", "atraso_entrega", "status_entrega"
     ]
 
     fato_sales = fato_sales[cols_fato].copy()
