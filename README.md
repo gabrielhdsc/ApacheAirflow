@@ -6,7 +6,7 @@ Este projeto implementa um pipeline de engenharia de dados utilizando Apache Air
 
 O pipeline realiza a ingestão de múltiplos datasets de um domínio de e-commerce, persistindo os dados brutos, aplicando padronizações e validações, e disponibilizando ao final um modelo analítico dimensional (Star Schema) pronto para consultas analíticas.
 
-O resultado final é uma camada Gold estruturada em Fato e Dimensões, permitindo análises de custos, distribuição geográfica, desempenho logístico e de satisfação, performance de vendas, clientes e vendedores.
+O resultado final é uma camada Gold estruturada em Fato e Dimensões, pronta para análises de vendas, produtos, clientes e desempenho logístico. Os dados de geolocalização, pagamentos, avaliações e vendedores também são tratados na Silver e podem alimentar expansões futuras da camada analítica.
 
 ---
 
@@ -46,8 +46,8 @@ Os arquivos são ingeridos e armazenados em formato Parquet particionado por dat
 
 Metadados adicionados:
 
-* `data_ingestao`
-* `fonte_original`
+* `Data_Ingestao` - timestamp de quando o arquivo foi ingerido
+* `Fonte` - nome do arquivo original
 
 ### Silver Layer
 
@@ -55,7 +55,7 @@ Camada de tratamento e padronização dos dados:
 
 * tipagem correta de colunas
 * remoção de inconsistências
-* Deduplicação de dados
+* deduplicação quando aplicável à chave de negócio de cada dataset
 * preparação para modelagem
 
 Representa a versão **confiável e limpa** dos dados operacionais.
@@ -73,12 +73,15 @@ Projetada para consultas analíticas e métricas de negócio.
 
 ## 🧰 Tecnologias Utilizadas
 
-* Python (Pandas)
-* Apache Airflow
-* Pandas
-* PostgreSQL
-* Docker
-* Git & GitHub
+* **Python 3.12.7** - Linguagem de programação
+* **Apache Airflow 3.1.6** - Orquestração de workflows
+* **Pandas** - Manipulação e transformação de dados
+* **PostgreSQL 16** - Banco de dados relacional
+* **Redis** - Broker de mensagens para Celery
+* **SQLAlchemy** - ORM para conexão com banco de dados
+* **Docker & Docker Compose** - Containerização e orquestração de infraestrutura
+* **NumPy** - Cálculo de métricas e classificação do status de entrega
+* **PyArrow / Parquet** - Formato e suporte para armazenamento colunar de dados
 
 ---
 
@@ -98,7 +101,7 @@ A camada final é otimizada para consultas análisticas, seguindo um modelo **St
 
 `fato_sales`
 
-Chave estrangeiras e métricas quantitativas.
+Contém colunas de relacionamento com pedidos, produtos, clientes e data, além de métricas quantitativas. As relações são lógicas: o pipeline não cria restrições de chave estrangeira no PostgreSQL.
 
 Métricas:
 
@@ -125,12 +128,23 @@ A dimensão de data permite análises temporais como:
 
 ## ⏱ Orquestração
 
-O pipeline é orquestrado por uma DAG do **Apache Airflow**, responsável por:
+O pipeline é orquestrado por uma **DAG do Apache Airflow** utilizando **CeleryExecutor** (com Redis e PostgreSQL) para processamento distribuído:
 
-1. Ingestão da Landing → Bronze
-2. Transformações Bronze → Silver
-3. Construção das Dimensões
-4. Construção da Tabela Fato
+### Fluxo de Execução
+
+1. **Ingestão (Bronze Layer)**
+   - `ingestao_bronze`: Lê todos os CSVs da Landing e cria partições por data em Parquet
+
+2. **Transformação (Silver Layer)** - 8 tarefas liberadas após a Bronze
+   - `tratamento_products`, `tratamento_orders`, `tratamento_customers`
+   - `tratamento_order_items`, `tratamento_geolocation`, `tratamento_order_payments`
+   - `tratamento_order_reviews`, `tratamento_sellers`
+   - Cada tarefa seleciona colunas, padroniza tipos e aplica as regras específicas do dataset. `order_items` preserva múltiplos itens por pedido e `geolocation` não é deduplicada.
+
+3. **Modelagem Dimensional (Gold Layer)**
+   - `criação_dim_products`, `criação_dim_customers`, `criação_dim_date`
+   - `criação_fato_sales`: depende de `orders` e `order_items`; realiza joins e calcula métricas (`lead_time`, `atraso_entrega`, `status_entrega`)
+   - **Persistência dupla**: Parquet (`/data/gold/`) + PostgreSQL (tabelas prontas para BI)
 
 A execução respeita dependências entre datasets para garantir consistência entre as camadas.
 
@@ -139,36 +153,49 @@ A execução respeita dependências entre datasets para garantir consistência e
 ## ▶️ Como Executar
 
 Pré-Requisitos
-* Docker
-* Docker compose 
+* Docker Desktop com Docker Compose
+* Pelo menos 4 GB de memória disponíveis para o Docker
+* Os arquivos CSV do dataset de e-commerce, mantidos apenas localmente
 
 1. Clonar o repositório
 
 ```
-git clone <https://github.com/gabrielhdsc/ApacheAirflow>
+git clone https://github.com/gabrielhdsc/ApacheAirflow
 ```
 
-2. Instalar bibliotecas
+2. Preparar os dados locais
+
+Crie as pastas abaixo e coloque os CSVs de origem em `data/landingzone/`. Os dados são ignorados pelo Git intencionalmente e não são enviados ao repositório.
+
+```powershell
+New-Item -ItemType Directory -Force data/landingzone, data/silver, data/gold
+```
+
+Os nomes dos arquivos devem seguir o padrão esperado pela ingestão, como `olist_orders_dataset.csv`, `olist_products_dataset.csv` e `olist_customers_dataset.csv`. A tarefa Bronze cria automaticamente as partições em `data/bronze/<tabela>/<data-de-ingestao>/`.
+
+3. Dependências Python locais (opcional)
 ```
 pip install -r requirements.txt
 ```
 
-3. Subir o ambiente
+Este comando prepara apenas o ambiente Python local; ele não instala dependências dentro dos contêineres. Para executar a DAG com Docker, a imagem do Airflow precisa conter Pandas, NumPy, PyArrow, SQLAlchemy e `psycopg2`. O Compose atual permite informar dependências adicionais pela variável `_PIP_ADDITIONAL_REQUIREMENTS`, mas para uso recorrente é preferível criar uma imagem customizada.
+
+4. Subir o ambiente
 
 ```
 docker-compose up -d
 ```
 
-4. Acessar o Airflow
+5. Acessar o Airflow
 
 ```
 http://localhost:8080
 
-Usuário: Airflow
-Senha: Airfolw
+Usuário: airflow
+Senha: airflow
 ```
 
-5. Executar a DAG:
+6. Ativar e executar a DAG:
 
 ```
 pipeline_medallion_architecture
@@ -181,24 +208,38 @@ pipeline_medallion_architecture
 ```
 projeto-ApacheAirflow/
 ├── dags/
-│   └── dag_ingestão_dataset.py      # Orquestração do fluxo completo no Airflow
+│   └── dag_ingestao_dataset.py          # Orquestração do fluxo completo (Airflow DAG)
 ├── scripts/
-│   ├── landing_to_bronze.py       # Carga bruta, metadados e particionamento
-│   ├── bronze_to_silver.py        # Limpeza, tipagem, deduplicação e Full Load
-│   └── silver_to_gold.py          # Modelagem Star Schema, Joins e métricas de negócio
+│   ├── __init__.py                      # Módulo Python
+│   ├── bronze_ingestion.py              # Carga bruta: Landing → Bronze (metadados, particionamento)
+│   ├── silver_ingestion.py              # Transformação: Bronze → Silver (limpeza, tipagem, dedup)
+│   └── gold_ingestion.py                # Modelagem: Silver → Gold (Star Schema, métricas, joins)
+├── config/
+│   └── airflow.cfg                      # Configuração do Airflow
 ├── data/                          
-│   ├── landingzone/               # Arquivos .csv originais
-│   ├── bronze/                    # Dados particionados por data de ingestão
-│   │   └── orders/
-│   │       └── 2026-02-09/
-│   │           └── orders.parquet
-│   ├── silver/                    # Tabelas limpas, padronizadas e consolidadas
-│   └── gold/                      # Tabelas Fato e Dimensões prontas para consumo
-├── docker-compose.yaml            # Configuração da infraestrutura (Airflow, Postgres)
-├── requirements.txt               
-├── .gitignore                     
-└── README.md  
-
+│   ├── landingzone/                     # Arquivos .csv originais (não versionado)
+│   ├── bronze/                          # Dados particionados por data de ingestão (não versionado)
+│   │   ├── orders/
+│   │   │   └── 2026-02-13/
+│   │   │       └── orders_dataset.parquet
+│   │   ├── products/
+│   │   ├── customers/
+│   │   └── ...
+│   ├── silver/                          # Tabelas limpas, padronizadas (não versionado)
+│   │   ├── orders_dataset.parquet
+│   │   ├── products_dataset.parquet
+│   │   └── ...
+│   ├── gold/                            # Tabelas Fato + Dimensões (não versionado)
+│   │   ├── fato_sales.parquet
+│   │   ├── dim_customers.parquet
+│   │   ├── dim_products.parquet
+│   │   └── dim_date.parquet
+│   └── .gitkeep                         # Placeholder para manter pasta no git
+├── logs/                                # Logs de execução do Airflow (não versionado)
+├── docker-compose.yaml                  # Configuração da infraestrutura
+├── requirements.txt                     # Dependências Python
+├── .gitignore                           # Arquivos a ignorar no git
+└── README.md
 ```
                     
 ---
@@ -209,7 +250,7 @@ projeto-ApacheAirflow/
 Volume de dados compatível com processamento local e objetivo educacional focado em arquitetura e modelagem.
 
 **Particionamento por data de ingestão**
-Permite rastrear cargas, reprocessar dados e manter histórico.
+Permite rastrear cargas, reprocessar dados e manter histórico. Uma nova execução para a mesma tabela e data substitui o arquivo Parquet daquela partição.
 
 **Full Load Silver/Gold**
 Simplifica consistência do modelo dimensional durante a fase inicial do projeto.
